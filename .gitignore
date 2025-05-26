@@ -3,3 +3,6 @@
 /data
 submit.sh
 /models/*.pth
+/stage1/run
+/*/__init__.py
+__pycache__
