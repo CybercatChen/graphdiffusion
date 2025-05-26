@@ -4,7 +4,7 @@ from torch import Tensor
 from torch.nn import functional as F
 from torchmetrics import Metric, MeanSquaredError
 
-from diffusion.extra_features import ExtraFeatures
+from models.diffusion.extra_features import ExtraFeatures
 from utils import PlaceHolder
 
 

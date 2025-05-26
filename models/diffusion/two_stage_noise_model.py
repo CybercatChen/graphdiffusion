@@ -5,8 +5,8 @@ import torch.nn.functional as F
 
 from diff_nodes import Diffusion, Simple_FC
 import utils
-from diffusion import diffusion_utils
-from diffusion.noise_model import NoiseModel
+from models.diffusion import diffusion_utils
+from models.diffusion.noise_model import NoiseModel
 
 PROJECT_ROOT_DIR = Path(__file__).parent.parent.absolute()
 

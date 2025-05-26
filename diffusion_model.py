@@ -8,17 +8,17 @@ import torch
 import torch.nn.functional as F
 import torchmetrics
 
-import metrics.abstract_metrics as custom_metrics
+import models.metrics.abstract_metrics as custom_metrics
 import utils as utils
-from analysis.non_molecular_visualization import visualize_chains, visualize
+from post_process.analysis.non_molecular_visualization import visualize_chains, visualize
 from datasets.adaptive_loader import effective_batch_size
-from diffusion import diffusion_utils
-from diffusion.diffusion_utils import sum_except_batch
-from diffusion.extra_features import ExtraFeatures
-from diffusion.noise_model import DiscreteUniformTransition, MarginalUniformTransition
-from diffusion.two_stage_noise_model import MarginalTwoStageNoiseModel, UniformTwoStageNoiseModel
-from metrics.abstract_metrics import NLL
-from metrics.train_metrics import TrainLoss, ValLoss, TrainMolecularMetrics
+from models.diffusion import diffusion_utils
+from models.diffusion.diffusion_utils import sum_except_batch
+from models.diffusion.extra_features import ExtraFeatures
+from models.diffusion.noise_model import DiscreteUniformTransition, MarginalUniformTransition
+from models.diffusion.two_stage_noise_model import MarginalTwoStageNoiseModel, UniformTwoStageNoiseModel
+from models.metrics.abstract_metrics import NLL
+from models.metrics.train_metrics import TrainLoss, ValLoss, TrainMolecularMetrics
 from models.midi_transformer_model import EquivariantGraphTransformer
 from models.transformer_model import GraphTransformer
 from utils import save_graphs

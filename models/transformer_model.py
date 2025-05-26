@@ -8,7 +8,7 @@ from torch.nn.modules.linear import Linear
 from torch.nn.modules.normalization import LayerNorm
 
 import utils
-from diffusion import diffusion_utils
+from models.diffusion import diffusion_utils
 from models.layers import Xtoy, Etoy, masked_softmax, EtoX, SE3Norm
 
 

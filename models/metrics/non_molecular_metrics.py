@@ -14,9 +14,9 @@ from torch_geometric.utils import dense_to_sparse
 from torchmetrics import MeanMetric
 from tqdm import tqdm
 
-from analysis.topological_analysis import SimplicialComplex
+from post_process.analysis.topological_analysis import SimplicialComplex
 from datasets.dataset_utils import plot_list_of_dict_as_hist, plot_list_as_hist, plot_counter_as_hist
-from metrics.metrics_utils import counter_to_tensor, wasserstein1d, total_variation1d
+from models.metrics.metrics_utils import counter_to_tensor, wasserstein1d, total_variation1d
 from utils import NoSyncMAE as MeanAbsoluteError
 from utils import NoSyncMetric as Metric
 

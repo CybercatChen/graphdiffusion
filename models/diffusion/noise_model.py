@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 import utils as utils
-from diffusion import diffusion_utils
+from models.diffusion import diffusion_utils
 
 
 class NoiseModel:

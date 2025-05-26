@@ -3,39 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchmetrics import MeanSquaredError, MeanMetric
 
-from metrics.abstract_metrics import CrossEntropyMetric
-
-
-def differentiable_histogram(x, bins=255, min=0.0, max=1.0):
-    if len(x.shape) == 4:
-        n_samples, n_chns, _, _ = x.shape
-    elif len(x.shape) == 2:
-        n_samples, n_chns = 1, 1
-    else:
-        raise AssertionError('The dimension of input tensor should be 2 or 4.')
-
-    hist_torch = torch.zeros(n_samples, n_chns, bins).to(x.device)
-    delta = (max - min) / bins
-
-    BIN_Table = torch.range(start=0, end=bins, step=1) * delta
-
-    for dim in range(1, bins - 1, 1):
-        h_r = BIN_Table[dim].item()  # h_r
-        h_r_sub_1 = BIN_Table[dim - 1].item()  # h_(r-1)
-        h_r_plus_1 = BIN_Table[dim + 1].item()  # h_(r+1)
-
-        mask_sub = ((h_r > x) & (x >= h_r_sub_1)).float()
-        mask_plus = ((h_r_plus_1 > x) & (x >= h_r)).float()
-
-        hist_torch[:, :, dim] += torch.sum(((x - h_r_sub_1) * mask_sub).view(n_samples, n_chns, -1), dim=-1)
-        hist_torch[:, :, dim] += torch.sum(((h_r_plus_1 - x) * mask_plus).view(n_samples, n_chns, -1), dim=-1)
-
-    return hist_torch / delta
-
-
-def compute_histogram(values):
-    hist = differentiable_histogram(torch.tensor(values), bins=10, min=0, max=181)
-    return hist / hist.sum()
+from models.metrics.abstract_metrics import CrossEntropyMetric
 
 
 class TrainLoss(nn.Module):
@@ -51,23 +19,25 @@ class TrainLoss(nn.Module):
         print(f"Using node degree loss: {self.use_deg_loss}")
         self.lambda_train = lambda_train
 
+        # self.topo_loss
+
     def forward(self, masked_pred, masked_true, log, epoch):
         node_mask = masked_true.node_mask
         bs, n = node_mask.shape
 
-        true_pos = masked_true.pos[node_mask]  # q x 3
-        masked_pred_pos = masked_pred.pos[node_mask]  # q x 3
+        true_pos = masked_true.pos[node_mask]
+        masked_pred_pos = masked_pred.pos[node_mask]
 
-        true_X = masked_true.X[node_mask]  # q x 4
-        masked_pred_X = masked_pred.X[node_mask]  # q x 4
+        true_X = masked_true.X[node_mask]
+        masked_pred_X = masked_pred.X[node_mask]
 
-        true_charges = masked_true.charges[node_mask]  # q x 3
+        true_charges = masked_true.charges[node_mask]
         masked_pred_charges = masked_pred.charges[node_mask]
 
         diag_mask = ~torch.eye(n, device=node_mask.device, dtype=torch.bool).unsqueeze(0).repeat(bs, 1, 1)
         edge_mask = diag_mask & node_mask.unsqueeze(-1) & node_mask.unsqueeze(-2)
-        masked_pred_E = masked_pred.E[edge_mask]  # r x num_categ
-        true_E = masked_true.E[edge_mask]  # r x num_categ
+        masked_pred_E = masked_pred.E[edge_mask]
+        true_E = masked_true.E[edge_mask]
 
         assert (true_X != 0.).any(dim=-1).all()
         assert (true_E != 0.).any(dim=-1).all()

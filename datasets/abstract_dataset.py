@@ -7,7 +7,7 @@ try:
     from torch_geometric.data import LightningDataset
 except ImportError:
     from torch_geometric.data.lightning import LightningDataset
-from diffusion.distributions import DistributionNodes
+from models.diffusion.distributions import DistributionNodes
 
 
 def maybe_subset(ds, random_subset: Optional[float] = None, split=None) -> torch.utils.data.Dataset:

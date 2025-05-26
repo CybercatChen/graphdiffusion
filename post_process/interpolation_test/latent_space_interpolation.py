@@ -12,7 +12,7 @@ from torch_scatter import scatter
 from tqdm import tqdm
 
 from stage2 import utils
-from analysis import non_molecular_visualization
+from post_process.analysis import non_molecular_visualization
 from stage2.diffusion_model import FullDenoisingDiffusion
 from stage2.utils import save_graphs
 
