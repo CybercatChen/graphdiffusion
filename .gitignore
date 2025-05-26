@@ -2,13 +2,13 @@
 /logs
 /data
 submit.sh
-/models/*.pth
+/models/checkpoint/*.pth
 /stage1/runs
 /*/__init__.py
 /*/*/__init__.py
+/__pycache__
 /*/__pycache__
 /*/*/__pycache__
-/__pycache__
 /stage1/node_diffusion
 /datasets/__init__.py
-/analysis/*.ttf
+/post_process/analysis/*.ttf
