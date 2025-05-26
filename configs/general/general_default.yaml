@@ -1,0 +1,29 @@
+name: 'graph-vessel-model'
+
+wandb: 'disabled'
+gpus: 1
+
+resume: null
+test_only: null
+
+sample_every_train: 500
+check_val_every_n_epochs: 500
+sample_every_val: 500
+val_check_interval: null
+samples_to_generate: 64
+samples_to_save: 1
+chains_to_save: 1
+log_every_steps: 50
+number_chain_steps: 50
+
+faster_sampling: 1
+
+final_model_samples_to_generate: 128
+final_model_samples_to_save: 128
+final_model_chains_to_save: 1
+
+cpus_per_gpu: 8
+force_ray: false
+
+evaluate_all_checkpoints: False
+num_final_sampling: 1
