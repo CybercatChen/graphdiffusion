@@ -3,7 +3,7 @@
 /data
 submit.sh
 /models/*.pth
-/stage1/run
+/stage1/runs
 /*/__init__.py
 __pycache__
 /stage1/node_diffusion
