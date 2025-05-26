@@ -8,3 +8,4 @@ submit.sh
 /*/*/__init__.py
 __pycache__
 /stage1/node_diffusion
+/datasets/__init__.py
