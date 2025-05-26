@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchmetrics import MeanSquaredError, MeanMetric
 
+from models.topo_loss import compute_topo_loss
 from models.metrics.abstract_metrics import CrossEntropyMetric
 
 
@@ -14,10 +15,11 @@ class TrainLoss(nn.Module):
         self.edge_loss = CrossEntropyMetric()
         self.degree_loss = MeanMetric()
         self.y_loss = CrossEntropyMetric()
-        self.use_deg_loss = cfg.model.get("deg_loss", False)
         self.train_pos_mse = MeanSquaredError(sync_on_compute=False, dist_sync_on_step=False)
-        print(f"Using node degree loss: {self.use_deg_loss}")
         self.lambda_train = lambda_train
+
+        self.use_deg_loss = cfg.model.get("deg_loss", False)
+        self.use_topo = cfg.model.get("use_topo", False)
 
         # self.topo_loss
 
@@ -39,6 +41,12 @@ class TrainLoss(nn.Module):
         masked_pred_E = masked_pred.E[edge_mask]
         true_E = masked_true.E[edge_mask]
 
+        loss_topo = 0.0
+        if self.use_topo:
+            pred_adj = masked_pred.E[..., 1:].sum(dim=-1)
+            true_adj = masked_true.E[..., 1:].sum(dim=-1)
+            loss_topo = sum(compute_topo_loss(pred_adj[i], true_adj[i]) for i in range(bs)) / bs
+
         assert (true_X != 0.).any(dim=-1).all()
         assert (true_E != 0.).any(dim=-1).all()
         loss_pos = self.train_pos_mse(masked_pred_pos, true_pos)
@@ -56,7 +64,8 @@ class TrainLoss(nn.Module):
                       self.lambda_train[2] * loss_charges +
                       self.lambda_train[5] * loss_deg +
                       self.lambda_train[3] * loss_E +
-                      self.lambda_train[4] * loss_y)
+                      self.lambda_train[4] * loss_y +
+                      self.lambda_train[5] * loss_topo)
 
         to_log = {
             "train_loss/pos_mse": self.lambda_train[0] * self.train_pos_mse.compute() if true_X.numel() > 0 else -1,
@@ -66,6 +75,7 @@ class TrainLoss(nn.Module):
             "train_loss/deg_kl": self.lambda_train[5] * loss_deg if true_X.numel() > 0 else -1,
             "train_loss/E_CE": self.lambda_train[3] * self.edge_loss.compute() if true_E.numel() > 0 else -1.0,
             "train_loss/y_CE": self.lambda_train[4] * self.y_loss.compute() if masked_true.y.numel() > 0 else -1.0,
+            "train_loss/topo_loss": self.lambda_train[5] * loss_topo if self.use_topo else -1.0,
             "train_loss/batch_loss": batch_loss.item()} if log else None
 
         return batch_loss, to_log
@@ -193,8 +203,6 @@ class ValLoss(nn.Module):
 class TrainMolecularMetrics(nn.Module):
     def __init__(self, dataset_infos):
         super().__init__()
-        # self.train_atom_metrics = AtomMetricsCE(dataset_infos=dataset_infos)
-        # self.train_bond_metrics = BondMetricsCE()
 
     def forward(self, masked_pred, masked_true, log: bool):
         return None

@@ -22,7 +22,6 @@ def bond_angles(data_list, atom_encoder):
                     a = data.pos[j] - data.pos[i]
                     b = data.pos[k] - data.pos[i]
 
-                    # print(a, b, torch.norm(a) * torch.norm(b))
                     angle = torch.acos(torch.dot(a, b) / (torch.norm(a) * torch.norm(b) + 1e-6))
                     angle = angle * 180 / math.pi
 
@@ -47,7 +46,6 @@ def counter_to_tensor(c: Counter):
 
 
 def wasserstein1d(preds, target, step_size=1):
-    """ preds and target are 1d tensors. They contain histograms for bins that are regularly spaced """
     target = normalize(target) / step_size
     preds = normalize(preds) / step_size
     max_len = max(len(preds), len(target))

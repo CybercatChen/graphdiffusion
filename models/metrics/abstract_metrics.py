@@ -8,8 +8,6 @@ from models.diffusion.extra_features import ExtraFeatures
 from utils import PlaceHolder
 
 
-# TODO: these full check updates are probably not necessary
-
 class SumExceptBatchMetric(Metric):
     full_state_update = True
 
