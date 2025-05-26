@@ -6,9 +6,8 @@ gpus: 1
 resume: null
 test_only: null
 
-sample_every_train: 500
 check_val_every_n_epochs: 500
-sample_every_val: 500
+sample_every_val: 50
 val_check_interval: null
 samples_to_generate: 64
 samples_to_save: 1

@@ -158,7 +158,7 @@ class FullDenoisingDiffusion(pl.LightningModule):
         print_str = []
         for key, val in log_dict.items():
             new_val = f"{val:,.2f}"
-            print_str.append(f"{key}: {new_val} -- ")
+            print_str.append(f"{key}: {new_val} | ")
         print_str = ''.join(print_str)
         print(f"Epoch {self.current_epoch}: {print_str}."[:-4])
         log_dict.update(vle_log)
@@ -171,8 +171,7 @@ class FullDenoisingDiffusion(pl.LightningModule):
         print(f'Val loss: {val_nll:,.4f} \t Best val loss:  {self.best_val_nll:,.4f}\n')
 
         self.val_counter += 1
-        if self.name == "debug" or (self.val_counter % self.cfg.general.sample_every_val == 0 and
-                                    self.current_epoch > 0):
+        if self.val_counter % self.cfg.general.sample_every_val == 0 and self.current_epoch > 0:
             print(f"Sampling start")
             gen = self.cfg.general
             samples = self.sample_n_graphs(samples_to_generate=math.ceil(gen.samples_to_generate / max(gen.gpus, 1)),
@@ -221,7 +220,7 @@ class FullDenoisingDiffusion(pl.LightningModule):
         print_str = []
         for key, val in log_dict.items():
             new_val = f"{val:.4f}"
-            print_str.append(f"{key}: {new_val} -- ")
+            print_str.append(f"{key}: {new_val} | ")
         print_str = ''.join(print_str)
         print(f"Epoch {self.current_epoch}: {print_str}."[:-4])
         log_dict.update(tle_log_new)
@@ -505,16 +504,6 @@ class FullDenoisingDiffusion(pl.LightningModule):
                    f"y: {tle_log['train_epoch/y_CE'] :.2f} | {time.time() - self.start_epoch_time:.1f}s ")
 
         self.log_dict(tle_log, batch_size=self.BS)
-        if (self.current_epoch+1) % self.cfg.general.sample_every_train == 0:
-            print(f"[Train] Sampling at epoch {self.current_epoch}")
-            samples = self.sample_n_graphs(
-                samples_to_generate=8,
-                chains_to_save=2,
-                samples_to_save=4,
-                test=False
-            )
-            del samples
-            torch.cuda.empty_cache()
 
     def on_train_epoch_start(self) -> None:
         self.start_epoch_time = time.time()
