@@ -6,3 +6,4 @@ submit.sh
 /stage1/run
 /*/__init__.py
 __pycache__
+/stage1/node_diffusion
