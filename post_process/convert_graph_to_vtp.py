@@ -1,5 +1,4 @@
 import os
-import os
 import shutil
 
 import torch
@@ -13,13 +12,6 @@ from post_process.post_process_utils import save_as_vtp
 
 
 def apply_padding_offset(translated_nodes, new_min, new_max, selected_edges, selected_edge_attr):
-    """
-    We would clip the coordinates so that they do not exceed the provided limits.
-    :param translated_nodes: Tensor(N, 3)
-    :param new_min: float
-    :param new_max: float
-    :return: updated node coordinates; Tensor(N,3)
-    """
     new_com, orig_com = 0.5, 0
     offset = new_com - orig_com
     translated_nodes += offset
@@ -33,7 +25,6 @@ def align_graph_nodes_save_vtp(load_dir, discrete_graph_file, cont_graph_file,
     new_data_dict = {}
     for idx, pyG_dataset in tqdm(enumerate(pyG_list), total=len(pyG_list)):
         nodes, edges, edge_attr = pyG_dataset.x, pyG_dataset.edge_index, pyG_dataset.edge_attr
-        # Remove the self loops if any
         edges, edge_attr = remove_self_loops(edge_index=edges, edge_attr=edge_attr)
 
         if len(edge_attr) == 0:
@@ -44,22 +35,14 @@ def align_graph_nodes_save_vtp(load_dir, discrete_graph_file, cont_graph_file,
             edges, edge_attr, mask = remove_isolated_nodes(edge_index=edges, edge_attr=edge_attr,
                                                            num_nodes=nodes.size(0))
             nodes = nodes[mask]
-            # This operation can not lead to "empty" edges since we just remove isolated nodes.
-            # The edges are not affected during this operation.
             print(f"Num node decrease by {(mask == False).sum()}")
         if len(edge_attr) == 0:
             print(f"Generated 0 attribute graph {pyG_dataset=}".Skipping)
             continue
         selected_edges, selected_edge_attr = edges, edge_attr
         if torch.any(selected_edge_attr <= 0):
-            print("Something wrong")
             print(f"{selected_edge_attr=}")
-        # we need to scale the nodes.
-        # This is needed since the original images had some padding.
-        # Thus, the generated volume should replicate that as well.
-        # The step is specific to vessap dataset and can also be ignored since it does not affect downstream results.
         if seg_has_pads:
-            # Do the scaling by min-max per dimension. This way, scaled between 0, 1
             nodes, selected_edges, selected_edge_attr = apply_padding_offset(nodes, patch_min,
                                                                              patch_max, selected_edges,
                                                                              selected_edge_attr)
@@ -75,7 +58,7 @@ def align_graph_nodes_save_vtp(load_dir, discrete_graph_file, cont_graph_file,
 
 
 if __name__ == '__main__':
-    load_dir = r'D:\PartVessel\vessel_dif\logs\imagecas2025-05-20\19-56-11-graph-vessel-model'
+    load_dir = r'/home/siqichen/vessel_dif/logs/march2025-05-26/17-45-43-graph-vessel-model'
     torch_geometric.seed_everything(42)
     dest_folder = os.path.join(load_dir, "synthetic_data", "vtp")
     if os.path.exists(dest_folder):

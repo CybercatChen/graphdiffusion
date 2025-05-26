@@ -1,6 +1,6 @@
 # Training settings
 #n_epochs: 2000
-n_epochs: 1500
+n_epochs: 600
 
 batch_size: 64
 reference_batch_size: 300

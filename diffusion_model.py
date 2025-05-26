@@ -152,8 +152,8 @@ class FullDenoisingDiffusion(pl.LightningModule):
         vle_log = self.val_loss.log_epoch_metrics()
         self.print(f"VAL Epoch {self.current_epoch} | "
                    f"X: {vle_log['val_epoch/x_CE'] :.2f} | "
-                   f"E: {vle_log['val_epoch/E_CE'] :.2f} | "
-                   f"charges: {vle_log['val_epoch/charges_CE'] :.2f} | "
+                   f"E: {vle_log['val_epoch/E_CE'] :.4f} | "
+                   f"charges: {vle_log['val_epoch/charges_CE'] :.4f} | "
                    f"y: {vle_log['val_epoch/y_CE'] :.2f}")
         print_str = []
         for key, val in log_dict.items():

@@ -39,8 +39,6 @@ def compute_histogram(values):
 
 
 class TrainLoss(nn.Module):
-    """ Train with Cross entropy"""
-
     def __init__(self, lambda_train, cfg=None):
         super().__init__()
         self.node_loss = CrossEntropyMetric()
@@ -53,7 +51,7 @@ class TrainLoss(nn.Module):
         print(f"Using node degree loss: {self.use_deg_loss}")
         self.lambda_train = lambda_train
 
-    def forward(self, masked_pred, masked_true, log: bool, epoch):
+    def forward(self, masked_pred, masked_true, log, epoch):
         node_mask = masked_true.node_mask
         bs, n = node_mask.shape
 
@@ -71,22 +69,18 @@ class TrainLoss(nn.Module):
         masked_pred_E = masked_pred.E[edge_mask]  # r x num_categ
         true_E = masked_true.E[edge_mask]  # r x num_categ
 
-        # Check that the masking is correct
         assert (true_X != 0.).any(dim=-1).all()
         assert (true_E != 0.).any(dim=-1).all()
-        # Calculating pos_mse for the MiDi case.
-        # For other cases, the loss is zero.
-        loss_pos = self.train_pos_mse(masked_pred_pos, true_pos) if true_pos.numel() > 0 else 0.0
+        loss_pos = self.train_pos_mse(masked_pred_pos, true_pos)
         loss_X = self.node_loss(masked_pred_X, true_X) if true_X.numel() > 0 else 0.0
         loss_charges = self.charges_loss(masked_pred_charges, true_charges) if true_charges.numel() > 0 else 0.0
-        loss_E = self.edge_loss(masked_pred_E, true_E) if true_E.numel() > 0 else 0.0
+        loss_E = self.edge_loss(masked_pred_E, true_E)
         loss_deg = 0
-        # Let us also compute the node degree loss
         if self.use_deg_loss:
             loss_deg = self.node_degree_loss(pred=masked_pred, true=masked_true, node_mask=node_mask,
                                              edge_mask=edge_mask)
         self.degree_loss.update(loss_deg)
-        loss_y = self.y_loss(masked_pred.y, masked_true.y) if masked_true.y.numel() > 0 else -1
+        loss_y = self.y_loss(masked_pred.y, masked_true.y)
         batch_loss = (self.lambda_train[0] * loss_pos +
                       self.lambda_train[1] * loss_X +
                       self.lambda_train[2] * loss_charges +
@@ -112,27 +106,12 @@ class TrainLoss(nn.Module):
             metric.reset()
 
     def node_degree_loss(self, pred, true, node_mask, edge_mask, max_node_deg=15):
-        """
-        Computes the difference in the distribution of the node degrees between the gt
-        and the predicted nodes.
-        :param pred: Placeholder. Has Adj of shape B, N, N, C
-        :param true: Placeholder. Has Adj of shape B, N, N, C
-        :param node_mask: B, N
-        :param edge_mask: B, N, N
-        :param max_node_deg: Maximum number of nodes in the dataset.
-        :return: MSE loss between the mean and std dev of the two lists
-        """
-        # if epoch <= 10:
-        #     return torch.tensor([0.]).to(pred.E.device)
         gt_adj = true.E
         pred_adj = self.get_adjacency(placeholder=pred)  # B, N, N, C
-        # Collapsing the dimension and ignoring the background class
         gt_adj = gt_adj[..., 1:].sum(dim=-1)  # BxNxN
         pred_adj = pred_adj[..., 1:].sum(dim=-1)  # BxNxN
-        # We ignore the padded edges
         gt_adj = gt_adj * edge_mask
         pred_adj = pred_adj * edge_mask
-        # Compute the differentiable node degrees
         gt_degrees = gt_adj.sum(dim=2)  # BxN
         pred_degrees = pred_adj.sum(dim=2)
         gt_degrees = gt_degrees[node_mask]  # BxN
@@ -142,20 +121,12 @@ class TrainLoss(nn.Module):
         return F.kl_div(torch.log(pred_degrees), gt_degree_prob, reduction='batchmean')
 
     def convert_list_to_hist(self, degrees, max_node_deg):
-        # Flatten the differentiable node degrees
         hist = torch.zeros(max_node_deg + 1).to(degrees.device)
-        # We make one last change of clubbing degree greater than max into max_degree
-        # degrees[degrees > max_node_deg] = max_node_deg
-        # Compute the histogram of the differentiable node degrees
-        # degrees [0, max_node_deg -1]
         degrees = degrees + 1  # [1, max_node_deg]
         for i in range(max_node_deg + 1):
             if i in degrees:
-                # hist[i] = ((degrees * (degrees == i + 1)) / (i + 1)).sum()
                 hist[i] = (degrees == i + 1).sum()
-        # handle numerical instability
         hist[hist == 0] = 1e-6
-        # normalize the histogram to make it valid likelihood to be used in loss function
         norm_hist = hist / hist.sum()
         return norm_hist
 
@@ -171,7 +142,6 @@ class TrainLoss(nn.Module):
         epoch_charges_loss = self.charges_loss.compute().item() if self.charges_loss > 0 else -1.0
         epoch_edge_loss = self.edge_loss.compute().item() if self.edge_loss.total_samples > 0 else -1.0
         epoch_y_loss = self.y_loss.compute().item() if self.y_loss.total_samples > 0 else -1.0
-        # Since we are feeding in dummy value of 0 for both these metrics, no need to check for num_samples
         epoch_deg_loss = self.degree_loss.compute().item()
 
         to_log = {
