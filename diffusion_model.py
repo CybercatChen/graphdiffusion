@@ -19,7 +19,6 @@ from models.diffusion.noise_model import DiscreteUniformTransition, MarginalUnif
 from models.diffusion.two_stage_noise_model import MarginalTwoStageNoiseModel, UniformTwoStageNoiseModel
 from models.metrics.abstract_metrics import NLL
 from models.metrics.train_metrics import TrainLoss, ValLoss, TrainMolecularMetrics
-from models.midi_transformer_model import EquivariantGraphTransformer
 from models.transformer_model import GraphTransformer
 from utils import save_graphs
 
@@ -63,14 +62,6 @@ class FullDenoisingDiffusion(pl.LightningModule):
         print(f"MODEL DIRECTED = {self.directed}")
 
         if cfg.model.get("is_equivariant", False):
-            print("USING MIDI EQUIVARIANT MODEL")
-            self.model = EquivariantGraphTransformer(input_dims=self.input_dims,
-                                                     n_layers=cfg.model.n_layers,
-                                                     hidden_mlp_dims=cfg.model.hidden_mlp_dims,
-                                                     hidden_dims=cfg.model.hidden_dims,
-                                                     output_dims=self.output_dims,
-                                                     is_directed=self.directed,
-                                                     cfg=cfg)
             if cfg.model.transition == 'uniform':
                 self.noise_model = DiscreteUniformTransition(output_dims=self.output_dims,
                                                              cfg=cfg)

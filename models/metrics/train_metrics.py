@@ -21,8 +21,6 @@ class TrainLoss(nn.Module):
         self.use_deg_loss = cfg.model.get("deg_loss", False)
         self.use_topo = cfg.model.get("use_topo", False)
 
-        # self.topo_loss
-
     def forward(self, masked_pred, masked_true, log, epoch):
         node_mask = masked_true.node_mask
         bs, n = node_mask.shape
@@ -41,11 +39,18 @@ class TrainLoss(nn.Module):
         masked_pred_E = masked_pred.E[edge_mask]
         true_E = masked_true.E[edge_mask]
 
-        loss_topo = 0.0
-        if self.use_topo:
-            pred_adj = masked_pred.E[..., 1:].sum(dim=-1)
-            true_adj = masked_true.E[..., 1:].sum(dim=-1)
-            loss_topo = sum(compute_topo_loss(pred_adj[i], true_adj[i]) for i in range(bs)) / bs
+        # loss_topo = 0.0
+        # if self.use_topo:
+        #     pred_labels = masked_pred.E.argmax(dim=-1)
+        #     true_labels = masked_true.E.argmax(dim=-1)
+        #     pred_adj = (pred_labels != 0).float()
+        #     true_adj = (true_labels != 0).float()
+        #     total = 0.0
+        #     for i in range(bs):
+        #         loss0 = compute_topo_loss(pred_adj[i], true_adj[i], dim=0)
+        #         loss1 = compute_topo_loss(pred_adj[i], true_adj[i], dim=1)
+        #         total += (loss0 + loss1)
+        #     loss_topo = total / bs
 
         assert (true_X != 0.).any(dim=-1).all()
         assert (true_E != 0.).any(dim=-1).all()
@@ -64,8 +69,9 @@ class TrainLoss(nn.Module):
                       self.lambda_train[2] * loss_charges +
                       self.lambda_train[5] * loss_deg +
                       self.lambda_train[3] * loss_E +
-                      self.lambda_train[4] * loss_y +
-                      self.lambda_train[5] * loss_topo)
+                      self.lambda_train[4] * loss_y
+                      # self.lambda_train[5] * loss_topo
+                      )
 
         to_log = {
             "train_loss/pos_mse": self.lambda_train[0] * self.train_pos_mse.compute() if true_X.numel() > 0 else -1,
@@ -75,7 +81,7 @@ class TrainLoss(nn.Module):
             "train_loss/deg_kl": self.lambda_train[5] * loss_deg if true_X.numel() > 0 else -1,
             "train_loss/E_CE": self.lambda_train[3] * self.edge_loss.compute() if true_E.numel() > 0 else -1.0,
             "train_loss/y_CE": self.lambda_train[4] * self.y_loss.compute() if masked_true.y.numel() > 0 else -1.0,
-            "train_loss/topo_loss": self.lambda_train[5] * loss_topo if self.use_topo else -1.0,
+            # "train_loss/topo_loss": self.lambda_train[5] * loss_topo if self.use_topo else -1.0,
             "train_loss/batch_loss": batch_loss.item()} if log else None
 
         return batch_loss, to_log

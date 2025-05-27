@@ -12,16 +12,12 @@ def visualize_non_molecule(nodes, edges, pos, path, num_node_types):
     ax = fig.add_subplot(projection='3d')
     ax.set_aspect('equal', adjustable='datalim')
     ax.view_init(elev=90, azim=-90)
-    # bg color is white
     ax.set_facecolor((1, 1, 1))
     ax.xaxis.pane.set_alpha(0)
     ax.yaxis.pane.set_alpha(0)
     ax.zaxis.pane.set_alpha(0)
     ax._axis3don = False
 
-    # ax.w_xaxis.line.set_color("white")
-
-    # max_value = positions.abs().max().item()
     axis_lim = 0.7
     ax.set_xlim(-axis_lim, axis_lim)
     ax.set_ylim(-axis_lim, axis_lim)
@@ -66,21 +62,16 @@ def visualize_non_molecule(nodes, edges, pos, path, num_node_types):
 def visualize(path: str, graph_list: list, num_graphs_to_visualize: int, log='graph'):
     if num_graphs_to_visualize == -1:
         num_graphs_to_visualize = len(graph_list)
-    # define path to save figures
     if not os.path.exists(path):
         os.makedirs(path)
     all_file_paths = []
-    # visualize the final molecules
     for i in range(num_graphs_to_visualize):
         file_path = os.path.join(path, 'graph_{}.png'.format(i))
         nodes, edges, pos, num_node_types = graph_list[i]
         if isinstance(pos, torch.Tensor):
             pos = pos.cpu().numpy()
         visualize_non_molecule(nodes=nodes, edges=edges, pos=pos, path=file_path, num_node_types=num_node_types)
-        # im = plt.imread(file_path)
         all_file_paths.append(file_path)
-        # if wandb.run and log is not None:
-        #     wandb.log({log: [wandb.Image(im, caption=file_path)]})
     return all_file_paths
 
 

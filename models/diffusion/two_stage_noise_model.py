@@ -1,10 +1,11 @@
 import os
 from pathlib import Path
+
 import torch
 import torch.nn.functional as F
 
-from diff_nodes import Diffusion, Simple_FC
 import utils
+from diff_nodes import Diffusion, Simple_FC
 from models.diffusion import diffusion_utils
 from models.diffusion.noise_model import NoiseModel
 
@@ -28,10 +29,9 @@ class MarginalTwoStageNoiseModel(NoiseModel):
             self.E_marginals = e_marginals_new
         else:
             if cfg.dataset.get("is_multiclass", False):
-                # e_marginals_new = e_marginals
                 e_marginals_new = torch.zeros_like(e_marginals)
                 e_marginals_new[0] = 1 / 66
-                e_marginals_new[1:] = 5 / 40  # equally for the rest of the samples
+                e_marginals_new[1:] = 5 / 40
                 e_marginals_new = e_marginals_new / torch.sum(e_marginals_new)
                 assert e_marginals_new.sum() == 1, "The marginal distribution does not sum to 1"
             else:
@@ -46,8 +46,8 @@ class MarginalTwoStageNoiseModel(NoiseModel):
         diffusion_pos = Diffusion(input_size=3, device=device)
         diff_pos_model = Simple_FC(hidden_dim=cfg.model.diff_1_config['hidden_dim'],
                                    n_layers=cfg.model.diff_1_config['n_layers']).to(device)
-        diff_pos_model.load_state_dict(torch.load(os.path.join(PROJECT_ROOT_DIR, 'models',
-                                                               f'checks_{cfg.dataset.name}_best_coord_diff_model.pth')))
+        diff_pos_model.load_state_dict(torch.load(
+            os.path.join(PROJECT_ROOT_DIR, f'checkpoint/checks_{cfg.dataset.name}_best_coord_diff_model.pth')))
 
         self.pos_denoiser = diff_pos_model
         self.diffusion_pos = diffusion_pos
@@ -67,8 +67,6 @@ class MarginalTwoStageNoiseModel(NoiseModel):
         return stationary_distribution
 
     def move_P_device(self, tensor):
-        """ Move the transition matrices to the device specified by tensor."""
-        # Let us also move some important variables to cuda
         self._alphas = self._alphas.to(tensor.device)
         self._alphas_bar = self._alphas_bar.to(tensor.device)
         self._betas = self._betas.to(tensor.device)
@@ -79,12 +77,6 @@ class MarginalTwoStageNoiseModel(NoiseModel):
                                            directed=self.is_directed)
 
     def get_Qt(self, t_int):
-        """ Returns one-step transition matrices for X and E, from step t - 1 to step t.
-        Qt = (1 - beta_t) * I + beta_t / K
-
-        beta_t: (bs)                         noise level between 0 and 1
-        returns: qx (bs, dx, dx), qe (bs, de, de), qy (bs, dy, dy).
-        """
         P = self.move_P_device(t_int)
         kwargs = {'device': t_int.device, 'dtype': torch.float32}
 
@@ -100,19 +92,10 @@ class MarginalTwoStageNoiseModel(NoiseModel):
         return utils.PlaceHolder(X=q_x, charges=q_c, E=q_e, y=None, pos=None, directed=self.is_directed)
 
     def get_Qt_bar(self, t_int):
-        """ Returns t-step transition matrices for X and E, from step 0 to step t.
-            Qt = prod(1 - beta_t) * I + (1 - prod(1 - beta_t)) / K
-
-            alpha_bar_t: (bs)         Product of the (1 - beta_t) for each time step from 0 to t.
-            returns: qx (bs, dx, dx), qe (bs, de, de), qy (bs, dy, dy).
-        """
         a_x = self.get_alpha_bar(t_int=t_int, key='x').unsqueeze(1)
         a_c = self.get_alpha_bar(t_int=t_int, key='c').unsqueeze(1)
         a_e = self.get_alpha_bar(t_int=t_int, key='e').unsqueeze(1)
-        # a_y = self.get_alpha_bar(t_int=t_int, key='y').unsqueeze(1)
-
         P = self.move_P_device(t_int)
-        # [X, charges, E, y, pos]
         dev = t_int.device
         q_x = a_x * torch.eye(self.X_classes, device=dev).unsqueeze(0) + (1 - a_x) * P.X
         q_c = a_c * torch.eye(self.charges_classes, device=dev).unsqueeze(0) + (1 - a_c) * P.charges
@@ -124,14 +107,12 @@ class MarginalTwoStageNoiseModel(NoiseModel):
         return utils.PlaceHolder(X=q_x, charges=q_c, E=q_e, y=None, pos=None)
 
     def sample_limit_dist(self, node_mask, is_directed=False):
-        """ 初始化，并从第一阶段采样节点坐标。Sample from the limit distribution of the diffusion process"""
         bs, n_max = node_mask.shape
         x_limit = self.X_marginals.expand(bs, n_max, -1)
         e_limit = self.E_marginals[None, None, None, :].expand(bs, n_max, n_max, -1)
         charges_limit = self.charges_marginals.expand(bs, n_max, -1)
         if 'x' in self.skip_noise_list:
             raise AttributeError("No point in skipping node degree denoising. It is dummy.")
-            # U_X = deg.to(node_mask.device)
         else:
             U_X = x_limit.flatten(end_dim=-2).multinomial(1).reshape(bs, n_max).to(node_mask.device)
             U_X = F.one_hot(U_X, num_classes=x_limit.shape[-1]).float()
@@ -143,9 +124,6 @@ class MarginalTwoStageNoiseModel(NoiseModel):
         U_c = F.one_hot(U_c, num_classes=charges_limit.shape[-1]).float()
 
         if not is_directed:
-            # Here the Upper triangular part of the adjacency matrix is connected to its transpose.
-            # This way, the graph is assured to be undirected.
-            # Get upper triangular part of edge noise, without main diagonal
             upper_triangular_mask = torch.zeros_like(U_E)
             indices = torch.triu_indices(row=U_E.size(1), col=U_E.size(2), offset=1)
             upper_triangular_mask[:, indices[0], indices[1], :] = 1
@@ -164,22 +142,16 @@ class MarginalTwoStageNoiseModel(NoiseModel):
                                  node_mask=node_mask, directed=is_directed).mask(node_mask)
 
     def sample_zs_from_zt_and_pred(self, z_t, pred, s_int, is_directed=False):
-        """Samples from zs ~ p(zs | zt). Only used during sampling. """
         bs, n, dxs = z_t.X.shape
         node_mask = z_t.node_mask
         t_int = z_t.t_int
 
-        # Retrieve transitions matrix
         Qtb = self.get_Qt_bar(t_int=t_int)
         Qsb = self.get_Qt_bar(t_int=s_int)
         Qt = self.get_Qt(t_int)
 
         assert torch.all(t_int == t_int[0]), "All denoising steps should be identical for the batch"
-        # node mask has already been removed
         pos = z_t.pos
-
-        # denoise connectivity
-        # Normalize predictions for the categorical features
         pred_X = F.softmax(pred.X, dim=-1)  # bs, n, d0
         pred_E = F.softmax(pred.E, dim=-1)  # bs, n, n, d0
         pred_charges = F.softmax(pred.charges, dim=-1)
@@ -199,7 +171,6 @@ class MarginalTwoStageNoiseModel(NoiseModel):
                                                                                            Qsb=Qsb.charges,
                                                                                            Qtb=Qtb.charges)
 
-        # Dim of these two tensors: bs, N, d0, d_t-1
         weighted_X = pred_X.unsqueeze(-1) * p_s_and_t_given_0_X  # bs, n, d0, d_t-1
         unnormalized_prob_X = weighted_X.sum(dim=2)  # bs, n, d_t-1
         unnormalized_prob_X[torch.sum(unnormalized_prob_X, dim=-1) == 0] = 1e-5
@@ -210,7 +181,6 @@ class MarginalTwoStageNoiseModel(NoiseModel):
         unnormalized_prob_c[torch.sum(unnormalized_prob_c, dim=-1) == 0] = 1e-5
         prob_c = unnormalized_prob_c / torch.sum(unnormalized_prob_c, dim=-1, keepdim=True)  # bs, n, d_t-1
 
-        # Checking value for the edges
         pred_E = pred_E.reshape((bs, -1, pred_E.shape[-1]))
         weighted_E = pred_E.unsqueeze(-1) * p_s_and_t_given_0_E  # bs, N, d0, d_t-1
         unnormalized_prob_E = weighted_E.sum(dim=-2)

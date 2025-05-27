@@ -1,7 +1,6 @@
-import torch
-from torch.nn import functional as F
 import numpy as np
-import math
+import torch
+
 from utils import PlaceHolder
 
 
@@ -87,102 +86,6 @@ def linear_schedule(timesteps, nu_arr):
     beta_start, beta_end = 1e-4, 0.02
     steps = timesteps + 1
     return torch.linspace(beta_start, beta_end, steps).unsqueeze(1).repeat(1, len(nu_arr))  # ((components, steps))
-
-
-def gaussian_KL(q_mu, q_sigma):
-    """Computes the KL distance between a normal distribution and the standard normal.
-        Args:
-            q_mu: Mean of distribution q.
-            q_sigma: Standard deviation of distribution q.
-            p_mu: Mean of distribution p.
-            p_sigma: Standard deviation of distribution p.
-        Returns:
-            The KL distance, summed over all dimensions except the batch dim.
-        """
-    return torch.log(1 / q_sigma) + 0.5 * (q_sigma ** 2 + q_mu ** 2) - 0.5
-
-
-def cdf_std_gaussian(x):
-    return 0.5 * (1. + torch.erf(x / math.sqrt(2)))
-
-
-def SNR(gamma):
-    """Computes signal to noise ratio (alpha^2/sigma^2) given gamma."""
-    return torch.exp(-gamma)
-
-
-def inflate_batch_array(array, target_shape):
-    """
-    Inflates the batch array (array) with only a single axis (i.e. shape = (batch_size,), or possibly more empty
-    axes (i.e. shape (batch_size, 1, ..., 1)) to match the target shape.
-    """
-    target_shape = (array.size(0),) + (1,) * (len(target_shape) - 1)
-    return array.view(target_shape)
-
-
-def sigma(gamma, target_shape):
-    """Computes sigma given gamma."""
-    return inflate_batch_array(torch.sqrt(torch.sigmoid(gamma)), target_shape)
-
-
-def alpha(gamma, target_shape):
-    """Computes alpha given gamma."""
-    return inflate_batch_array(torch.sqrt(torch.sigmoid(-gamma)), target_shape)
-
-
-def check_mask_correct(variables, node_mask):
-    for i, variable in enumerate(variables):
-        if len(variable) > 0:
-            assert_correctly_masked(variable, node_mask)
-
-
-def check_tensor_same_size(*args):
-    for i, arg in enumerate(args):
-        if i == 0:
-            continue
-        assert args[0].size() == arg.size()
-
-
-def sigma_and_alpha_t_given_s(gamma_t: torch.Tensor, gamma_s: torch.Tensor, target_size: torch.Size):
-    """
-    Computes sigma t given s, using gamma_t and gamma_s. Used during sampling.
-
-    These are defined as:
-        alpha t given s = alpha t / alpha s,
-        sigma t given s = sqrt(1 - (alpha t given s) ^2 ).
-    """
-    sigma2_t_given_s = inflate_batch_array(
-        -torch.expm1(F.softplus(gamma_s) - F.softplus(gamma_t)), target_size
-    )
-
-    # alpha_t_given_s = alpha_t / alpha_s
-    log_alpha2_t = F.logsigmoid(-gamma_t)
-    log_alpha2_s = F.logsigmoid(-gamma_s)
-    log_alpha2_t_given_s = log_alpha2_t - log_alpha2_s
-
-    alpha_t_given_s = torch.exp(0.5 * log_alpha2_t_given_s)
-    alpha_t_given_s = inflate_batch_array(alpha_t_given_s, target_size)
-
-    sigma_t_given_s = torch.sqrt(sigma2_t_given_s)
-
-    return sigma2_t_given_s, sigma_t_given_s, alpha_t_given_s
-
-
-def reverse_tensor(x):
-    return x[torch.arange(x.size(0) - 1, -1, -1)]
-
-
-def check_issues_norm_values(gamma, norm_val1, norm_val2, num_stdevs=8):
-    """ Check if 1 / norm_value is still larger than 10 * standard deviation. """
-    zeros = torch.zeros((1, 1))
-    gamma_0 = gamma(zeros)
-    sigma_0 = sigma(gamma_0, target_shape=zeros.size()).item()
-    max_norm_value = max(norm_val1, norm_val2)
-    if sigma_0 * num_stdevs > 1. / max_norm_value:
-        raise ValueError(
-            f'Value for normalization value {max_norm_value} probably too '
-            f'large with sigma_0 {sigma_0:.5f}*{num_stdevs} and '
-            f'1 / norm_value = {1. / max_norm_value}')
 
 
 def sample_discrete_features(probX, probE, prob_charges, node_mask, is_directed=False):

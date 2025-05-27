@@ -24,7 +24,7 @@ nu:
   y: 1
 
 deg_loss: True
-topo_loss: True
+use_topo: True
 is_equivariant: False
 
 
